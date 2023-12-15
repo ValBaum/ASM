@@ -1,0 +1,4 @@
+sentiment : https://pages.stern.nyu.edu/~jwurgler/data/Investor_Sentiment_Data_20220821_POST.xlsx
+cfnai : https://fred.stlouisfed.org/series/CFNAI
+fedFunds : https://fred.stlouisfed.org/series/FEDFUNDS
+vix : https://fred.stlouisfed.org/series/VIXCLS
