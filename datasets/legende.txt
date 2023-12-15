@@ -1,0 +1,15 @@
+1.CFNAI 
+2. FedFunds : taux interet
+3. Sentiment : si les gens sont confiants
+4. VIXCLS : volatilité
+5. TNA : total net average (prof data NAV)
+6. Fund momentum : moyenne mois -12 a -2 avant prediction
+7. Age : prof data (date - inception.date)
+8. family tna : sum of all tna of the family (normally expet the fund we are predicting)
+9. family number : number of fund of that family
+10. family momentum : mean of momentum (?? it was not explained in the papers)
+11. family age : oldest fund age in the family
+12. expense ratio : corresponds to the management fee (prof dataset)
+13. dividend yield (prof data)
+14. Manager age
+15. GPD
