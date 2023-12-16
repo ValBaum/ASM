@@ -6,9 +6,9 @@ library(quantmod)
 library(lubridate)
 #dat$Year <- floor(dat$Date)
 #dat$Month <- round((dat$Date - dat$Year) * 12)+1
-dat$Date <- as.Date(paste0("01 ", dat$Date), format = "%d %b. %Y", locale = "French_France")
+dat$Date <- as.Date(dat$Date, format = "%b. %Y")
 # Create a new Date column with the first day of each month
-dat$Date <- as.Date(paste(dat$Year, dat$Month, "01", sep="-"), format="%Y-%m-%d")
+
 dat$Inception.Date <- as.Date(dat$Inception.Date)
 
 # Calculate the age of the fund for each row
@@ -121,5 +121,24 @@ monthly_returns_df <- data.frame(Date = index(monthly_returns), Monthly_Return =
 result <- left_join(result, monthly_returns_df, by = "Date", suffix = c(".result", ".s&p500"))
 monthly_mean_df <- data.frame(Date = index(monthly_mean), Mean_Rate = coredata(monthly_mean))
 result <- left_join(result, monthly_mean_df, by = "Date", suffix = c(".result", ".treasury"))
+
+getBeta <- function(ticker, market_ticker) {
+  # Assuming you have the quantmod package installed
+  beta <- CAPM.beta(ticker, market = market_ticker)
+  return(beta)
+}
+
+# Apply the function to get beta for each Ticker in result
+result$Beta <- mapply(getBeta, result$Ticker, symbol)
+
+# Assuming you have the risk-free rate (e.g., 10-year Treasury yield)
+risk_free_rate <- tail(treasury_close, 1)
+
+# Compute the expected return using the CAPM formula
+result$Expected_Return <- risk_free_rate + result$Beta * (result$`Ad.s&p500` - risk_free_rate)
+
+
+
+
 
 write.csv(result, "learning_data.csv")

@@ -30,5 +30,7 @@ for ticker_symbol in df['Ticker']:
 # Create a DataFrame from the results
 result_df = pd.DataFrame(beta_results)
 
+
+
 # Save the result to a new CSV file
 result_df.to_csv('beta_results.csv', index=False)
