@@ -1,9 +1,12 @@
+rm(list = ls())
 # Load the RData file
 load("Project_ASM.RData")
 library(dplyr)
-dat$Year <- floor(dat$Date)
-dat$Month <- round((dat$Date - dat$Year) * 12)+1
-
+library(quantmod)
+library(lubridate)
+#dat$Year <- floor(dat$Date)
+#dat$Month <- round((dat$Date - dat$Year) * 12)+1
+dat$Date <- as.Date(paste0("01 ", dat$Date), format = "%d %b. %Y", locale = "French_France")
 # Create a new Date column with the first day of each month
 dat$Date <- as.Date(paste(dat$Year, dat$Month, "01", sep="-"), format="%Y-%m-%d")
 dat$Inception.Date <- as.Date(dat$Inception.Date)
@@ -73,4 +76,50 @@ for (col in conflict_columns) {
 # Remove the original conflicting columns
 result <- result %>%
   select(-ends_with(".x"), -ends_with(".y"))
-print(result)
+
+
+
+#excess return (abnormal return)
+
+#
+# s&p500
+#
+
+# Define the start and end dates
+start_date <- "2007-05-01"
+end_date <- Sys.Date()  # Use today's date as the end date
+
+# Define the symbol for S&P 500 (Yahoo Finance code: ^GSPC)
+symbol <- "^GSPC"
+
+# Download the historical data
+getSymbols(symbol, from = start_date, to = end_date, adjust = TRUE)
+
+# Extract the adjusted closing prices for the closing time of the first day of each month
+sp500 <- Op(to.monthly(GSPC, indexAt = "firstof"))
+#return for each month
+monthly_returns <- (lead(sp500) / sp500 - 1)*100# Remove the first row (NA due to lag)
+
+#
+# s&p500
+#
+# Define the start and end dates
+start_date <- "2007-05-01"
+end_date <- Sys.Date()  # Use today's date as the end date
+
+# Define the symbol for the 10-year US Treasury bond (Yahoo Finance code: ^IRX)
+symbol_treasury <- "^IRX"
+
+# Download the historical data
+getSymbols(symbol_treasury, from = start_date, to = end_date, adjust = TRUE)
+
+# Extract the adjusted closing prices
+treasury_close <- Ad(IRX)
+monthly_mean <- apply.monthly(treasury_close, FUN = mean, na.rm = TRUE)
+index(monthly_mean) <- as.Date(format(index(monthly_mean), "%Y-%m-01"))
+monthly_returns_df <- data.frame(Date = index(monthly_returns), Monthly_Return = coredata(monthly_returns))
+result <- left_join(result, monthly_returns_df, by = "Date", suffix = c(".result", ".s&p500"))
+monthly_mean_df <- data.frame(Date = index(monthly_mean), Mean_Rate = coredata(monthly_mean))
+result <- left_join(result, monthly_mean_df, by = "Date", suffix = c(".result", ".treasury"))
+
+write.csv(result, "learning_data.csv")
