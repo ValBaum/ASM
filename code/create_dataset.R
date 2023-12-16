@@ -15,7 +15,7 @@ dat$Inception.Date <- as.Date(dat$Inception.Date)
 dat$Fund.Age <- dat$Date - dat$Inception.Date
 
 # Create a new variable 'result' with columns Date, Ticker, and Fund.Age
-result <- dat[, c("Date", "Ticker","Global.Broad.Category", "Fund.Age", "NAV (USD)","Management.Fee", "Dividend.Yield", "Average.Manager.Tenure")]
+result <- dat[, c("Date", "Ticker","Global.Broad.Category", "Fund.Age", "NAV (USD)","Management.Fee", "Dividend.Yield", "Average.Manager.Tenure", "Return")]
 
 totals <- dat %>%
   group_by(Date, Global.Broad.Category) %>%
@@ -122,23 +122,42 @@ result <- left_join(result, monthly_returns_df, by = "Date", suffix = c(".result
 monthly_mean_df <- data.frame(Date = index(monthly_mean), Mean_Rate = coredata(monthly_mean))
 result <- left_join(result, monthly_mean_df, by = "Date", suffix = c(".result", ".treasury"))
 
-getBeta <- function(ticker, market_ticker) {
-  # Assuming you have the quantmod package installed
-  beta <- CAPM.beta(ticker, market = market_ticker)
-  return(beta)
+
+beta_result <- read.csv("beta_results.csv")
+
+# Merge beta results with the main data frame
+result <- merge(result, beta_result, by = "Ticker")
+
+result$Expected_Return <- with(result, IRX.Adjusted + Beta * (GSPC.Open - IRX.Adjusted))
+
+result$Abnormal_return <- result$Return - result$Expected_Return
+
+result <- result[order(result$Ticker, result$Date), ]
+# Function to calculate mean abnormal return over the past 12 months
+calculate_momentum <- function(abnormal_returns) {
+  # Calculate the cumulative sum of abnormal returns for the past 12 months
+  cumsum_abnormal_returns <- cumsum(abnormal_returns)
+  
+  # Calculate the mean abnormal return from 12 months ago to 2 months ago
+  momentum_values <- sapply(1:(length(cumsum_abnormal_returns) - 11), function(i) {
+    mean(abnormal_returns[i:(i + 10)], na.rm = TRUE)
+  })
+  
+  # Pad with NA for the first 11 months (no sufficient data for the calculation)
+  c(rep(NA, 11), momentum_values)
 }
 
-# Apply the function to get beta for each Ticker in result
-result$Beta <- mapply(getBeta, result$Ticker, symbol)
 
-# Assuming you have the risk-free rate (e.g., 10-year Treasury yield)
-risk_free_rate <- tail(treasury_close, 1)
+# Calculate the Momentum column
+result$Momentum <- ave(result$Abnormal_return, result$Ticker, FUN = calculate_momentum)
 
-# Compute the expected return using the CAPM formula
-result$Expected_Return <- risk_free_rate + result$Beta * (result$`Ad.s&p500` - risk_free_rate)
-
-
+fam_momentum <- result %>%
+  group_by(Global.Broad.Category, Date) %>%
+  summarise(Family_Momentum = mean(Momentum, na.rm = TRUE))
+result <- left_join(result, fam_momentum, by = c("Global.Broad.Category", "Date"))
 
 
+result <- result %>%
+  select(-Return, -GSPC.Open, -IRX.Adjusted, -Expected_Return)
 
 write.csv(result, "learning_data.csv")
