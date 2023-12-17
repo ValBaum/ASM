@@ -1,9 +1,10 @@
 rm(list = ls())
 # Load the RData file
-load("Project_ASM.RData")
+load("~/Documents/Cours/stat/project/code/Project_ASM.RData")
 library(dplyr)
 library(quantmod)
 library(lubridate)
+library(scales)
 #dat$Year <- floor(dat$Date)
 #dat$Month <- round((dat$Date - dat$Year) * 12)+1
 dat$Date <- as.Date(dat$Date, format = "%b. %Y")
@@ -54,7 +55,7 @@ result <- result %>%
 result <- result %>%
   select(-Total_NAV)
 
-df <- read.csv("df.csv")
+df <- read.csv("~/Documents/Cours/stat/project/code/df.csv")
 df <- df %>%
   rename(Date = DATE)
 df$Date <- as.Date(df$Date, format = "%Y-%m-%d") 
@@ -123,7 +124,7 @@ monthly_mean_df <- data.frame(Date = index(monthly_mean), Mean_Rate = coredata(m
 result <- left_join(result, monthly_mean_df, by = "Date", suffix = c(".result", ".treasury"))
 
 
-beta_result <- read.csv("beta_results.csv")
+beta_result <- read.csv("~/Documents/Cours/stat/project/code/beta_results.csv")
 
 # Merge beta results with the main data frame
 result <- merge(result, beta_result, by = "Ticker")
@@ -160,6 +161,15 @@ result <- left_join(result, fam_momentum, by = c("Global.Broad.Category", "Date"
 result <- result %>%
   select(-Return, -GSPC.Open, -IRX.Adjusted, -Expected_Return)
 
+# Function to shift values to the next date
+shift_values <- function(x) c(tail(x, -1), NA)
+
+# Create the 'prediction' column
+result <- result %>%
+  group_by(Ticker) %>%
+  mutate(prediction = shift_values(abnormal_return))
+
+
 result <- na.omit(result)
 result$SENT <- as.numeric(gsub(",", ".", result$SENT))
 result$expense_ratio <- as.numeric(gsub(",", ".", result$expense_ratio))
@@ -174,6 +184,12 @@ names(result)[names(result) == 'FEDFUNDS'] <- 'fed'
 names(result)[names(result) == 'Ticker'] <- 'ticker'
 names(result)[names(result) == 'Date'] <- 'date'
 names(result)[names(result) == 'Global.Broad.Category'] <- 'category'
+
+
+result$age <- as.integer(result$age)
+result$family_age <- as.integer(result$family_age)
+
+result$category <- as.numeric(factor(result$category))
 
 
 write.csv(result, "learning_data.csv")
