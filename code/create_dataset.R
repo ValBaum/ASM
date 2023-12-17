@@ -28,14 +28,14 @@ result <- result %>%
 
 category_counts <- dat %>%
   group_by(Global.Broad.Category) %>%
-  summarise(Family_no = n_distinct(Ticker))
+  summarise(family_no = n_distinct(Ticker))
 
 result <- result %>%
   left_join(category_counts, by = "Global.Broad.Category") 
 
 max_age_per_category <- dat %>%
   group_by(Date, Global.Broad.Category) %>%
-  summarise(Family_age = max(Fund.Age))
+  summarise(family_age = max(Fund.Age))
 
 # Merge the maximum age information back to the result
 result <- result %>%
@@ -47,7 +47,7 @@ result <- result %>%
 result <- result %>%
   rename(tna = `NAV (USD)`,
          age = Fund.Age,
-         exp_ratio = Management.Fee, 
+         expense_ratio = Management.Fee, 
          dividend = Dividend.Yield, 
          avg_manager = Average.Manager.Tenure)
 
@@ -130,7 +130,7 @@ result <- merge(result, beta_result, by = "Ticker")
 
 result$Expected_Return <- with(result, IRX.Adjusted + Beta * (GSPC.Open - IRX.Adjusted))
 
-result$Abnormal_return <- result$Return - result$Expected_Return
+result$abnormal_return <- result$Return - result$Expected_Return
 
 result <- result[order(result$Ticker, result$Date), ]
 # Function to calculate mean abnormal return over the past 12 months
@@ -148,16 +148,32 @@ calculate_momentum <- function(abnormal_returns) {
 }
 
 
-# Calculate the Momentum column
-result$Momentum <- ave(result$Abnormal_return, result$Ticker, FUN = calculate_momentum)
+# Calculate the momentum column
+result$momentum <- ave(result$abnormal_return, result$Ticker, FUN = calculate_momentum)
 
 fam_momentum <- result %>%
   group_by(Global.Broad.Category, Date) %>%
-  summarise(Family_Momentum = mean(Momentum, na.rm = TRUE))
+  summarise(family_momentum = mean(momentum, na.rm = TRUE))
 result <- left_join(result, fam_momentum, by = c("Global.Broad.Category", "Date"))
 
 
 result <- result %>%
   select(-Return, -GSPC.Open, -IRX.Adjusted, -Expected_Return)
+
+result <- na.omit(result)
+result$SENT <- as.numeric(gsub(",", ".", result$SENT))
+result$expense_ratio <- as.numeric(gsub(",", ".", result$expense_ratio))
+result$avg_manager <- as.numeric(gsub(",", ".", result$avg_manager))
+
+names(result)[names(result) == 'Beta'] <- 'beta'
+names(result)[names(result) == 'dgp_growth'] <- 'dgp'
+names(result)[names(result) == 'SENT'] <- 'sentiment'
+names(result)[names(result) == 'CFNAI'] <- 'cfnai'
+names(result)[names(result) == 'VIXCLS'] <- 'vix'
+names(result)[names(result) == 'FEDFUNDS'] <- 'fed'
+names(result)[names(result) == 'Ticker'] <- 'ticker'
+names(result)[names(result) == 'Date'] <- 'date'
+names(result)[names(result) == 'Global.Broad.Category'] <- 'category'
+
 
 write.csv(result, "learning_data.csv")
